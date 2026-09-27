@@ -949,7 +949,7 @@
 ### ChatGPT Desktop
 - **What:** OpenAI ChatGPT desktop app for Linux (preview)
 - **Installed:** Optional
-- **Usage:** Native ChatGPT workspace with local projects and Codex. Preview supports Ubuntu 24.04 and 26.04, x64 and ARM64. The TUI locks this entry on any other release. The .deb adds OpenAI's apt repository for later upgrades.
+- **Usage:** Native ChatGPT workspace with local projects and Codex. Preview supports Ubuntu 24.04 and 26.04, x64 and ARM64. The TUI locks this entry on any other release, and `install-all.sh` skips the download on those releases. The .deb adds OpenAI's apt repository for later upgrades.
 - **Install:** `curl -fL -o /tmp/chatgpt.deb https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/chatgpt_amd64.deb && sudo apt install -y /tmp/chatgpt.deb`
 - **Version Check:** `chatgpt` (or ChatGPT → About)
 

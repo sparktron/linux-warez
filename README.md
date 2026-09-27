@@ -36,7 +36,7 @@ sudo ./installer
 sudo bash install-all.sh
 ```
 
-Ubuntu **22.04 LTS**, x86-64. Run with `sudo` so root-only packages unlock. Both installers read `VERSION_ID` from `/etc/os-release`. `install-all.sh` installs only the lowlatency kernel for that release (`linux-lowlatency-hwe-22.04` or `linux-lowlatency-hwe-24.04`). The TUI locks the other release's kernel, and locks ChatGPT desktop on anything other than 24.04 or 26.04. Do not install the unversioned `linux-lowlatency` package; on 24.04 it tracks the older 6.8 GA kernel.
+Ubuntu **22.04 LTS**, x86-64. Run with `sudo` so root-only packages unlock. Both installers read `VERSION_ID` from `/etc/os-release`. `install-all.sh` installs only the lowlatency kernel for that release (`linux-lowlatency-hwe-22.04` or `linux-lowlatency-hwe-24.04`). The TUI locks the other release's kernel. Both installers skip ChatGPT desktop on anything other than 24.04 or 26.04. Do not install the unversioned `linux-lowlatency` package; on 24.04 it tracks the older 6.8 GA kernel.
 
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) and the [ChatGPT CLI](https://github.com/openai/codex) are checked only when they are not already installed. If they are already on the machine, they stay unchecked and the installer does not run them unless you check them yourself. When they are checked, they install first.
 
@@ -284,7 +284,7 @@ Needs [snapd](#system-tools). The headless script asks before installing snaps.
 | [ChatGPT CLI](https://github.com/openai/codex) | Codex CLI in `~/.local/bin`; always installed, always selected | script |
 | [Cursor](https://cursor.com/) | Cursor editor (Linux `.deb`) | script |
 | [Claude](https://claude.ai/download) | Claude desktop | script |
-| [ChatGPT](https://chatgpt.com/) | ChatGPT desktop | script |
+| [ChatGPT](https://chatgpt.com/) | ChatGPT desktop; 24.04 and 26.04 only | script |
 | [jcodemunch-mcp](https://pypi.org/project/jcodemunch-mcp/) | Code-search MCP server | script |
 
 Editor extensions and cloud MCP servers (Gmail, Calendar, Drive, Notion) are documented in [`LINUX_WAREZ_LIST.md`](LINUX_WAREZ_LIST.md). They are not installer entries.

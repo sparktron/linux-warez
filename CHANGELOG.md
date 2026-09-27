@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.2] — 2026-09-27
+
+### Fixes
+
+#### Headless ChatGPT desktop follows the same release gate as the TUI
+
+**Motivation:** 0.14.0 locked ChatGPT desktop in the TUI on anything other than Ubuntu 24.04 or 26.04, but `install-all.sh` still downloaded and installed the preview `.deb` on 22.04.
+
+**What it does:** The headless script reads `VERSION_ID` and skips ChatGPT desktop unless the machine is 24.04 or 26.04. The FiraCode install runs `fc-cache` and `gsettings` as the current user when the TUI is not root, and uses `sudo -u` only when it is. Claude Code and the ChatGPT CLI count as installed only when the candidate file is executable.
+
+---
+
 ## [0.14.1] — 2026-09-26
 
 ### Packages

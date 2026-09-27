@@ -167,7 +167,7 @@ packages have version pins that must not conflict:
 | SQLAlchemy==2.0.19 | Mythos `requirements.txt` pin | Pip install in both |
 | requests==2.31.0 | Mythos `requirements.txt` pin | Pip install in both |
 | FFmpeg from apt only (4.4.x) | PPA/snap versions ship different libavcodec SO versions | Description notes |
-| Kernel release | Production vessels need lowlatency. Install `linux-lowlatency-hwe-22.04` on Ubuntu 22.04 or `linux-lowlatency-hwe-24.04` on Ubuntu 24.04. Do not install both, and do not install unversioned `linux-lowlatency` (6.8 GA on 24.04). Both installers read `VERSION_ID` from `/etc/os-release`. The headless script installs only the matching package. The TUI locks the other release's kernel, and locks ChatGPT desktop except on 24.04 and 26.04. | Both installers |
+| Kernel release | Production vessels need lowlatency. Install `linux-lowlatency-hwe-22.04` on Ubuntu 22.04 or `linux-lowlatency-hwe-24.04` on Ubuntu 24.04. Do not install both, and do not install unversioned `linux-lowlatency` (6.8 GA on 24.04). Both installers read `VERSION_ID` from `/etc/os-release`. The headless script installs only the matching package. The TUI locks the other release's kernel. Both installers skip ChatGPT desktop except on 24.04 and 26.04. | Both installers |
 
 When adding or updating Python packages, check `~/mythos/third_party/rules_python/requirements.txt`
 for version conflicts.

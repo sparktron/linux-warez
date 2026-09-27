@@ -938,25 +938,35 @@ else
 fi
 
 log "Installing ChatGPT desktop..."
-if ! dpkg -l chatgpt &>/dev/null; then
-  case "$(dpkg --print-architecture)" in
-    amd64) CHATGPT_DEB="chatgpt_amd64.deb" ;;
-    arm64) CHATGPT_DEB="chatgpt_arm64.deb" ;;
-    *) warn "ChatGPT desktop has no package for $(dpkg --print-architecture)"; CHATGPT_DEB="" ;;
-  esac
-  if [ -n "${CHATGPT_DEB}" ]; then
-    if curl -fL -o /tmp/chatgpt.deb \
-      "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/${CHATGPT_DEB}"; then
-      apt install -y /tmp/chatgpt.deb || warn "ChatGPT desktop install failed"
-      rm -f /tmp/chatgpt.deb
+# OpenAI's preview .deb is built for Ubuntu 24.04 and 26.04. The TUI locks
+# this entry on every other release; skip it here so the two paths match.
+chatgpt_version_id="$(awk -F= '$1=="VERSION_ID" {gsub(/"/,"",$2); print $2; exit}' /etc/os-release 2>/dev/null || true)"
+case "${chatgpt_version_id}" in
+  24.04|26.04)
+    if ! dpkg -l chatgpt &>/dev/null; then
+      case "$(dpkg --print-architecture)" in
+        amd64) CHATGPT_DEB="chatgpt_amd64.deb" ;;
+        arm64) CHATGPT_DEB="chatgpt_arm64.deb" ;;
+        *) warn "ChatGPT desktop has no package for $(dpkg --print-architecture)"; CHATGPT_DEB="" ;;
+      esac
+      if [ -n "${CHATGPT_DEB}" ]; then
+        if curl -fL -o /tmp/chatgpt.deb \
+          "https://persistent.oaistatic.com/codex-app-prod/linux/deb/latest/${CHATGPT_DEB}"; then
+          apt install -y /tmp/chatgpt.deb || warn "ChatGPT desktop install failed"
+          rm -f /tmp/chatgpt.deb
+        else
+          warn "Could not download ChatGPT desktop"
+          rm -f /tmp/chatgpt.deb
+        fi
+      fi
     else
-      warn "Could not download ChatGPT desktop"
-      rm -f /tmp/chatgpt.deb
+      log "ChatGPT desktop already installed"
     fi
-  fi
-else
-  log "ChatGPT desktop already installed"
-fi
+    ;;
+  *)
+    warn "Skipping ChatGPT desktop: preview supports Ubuntu 24.04 and 26.04 (this machine is ${chatgpt_version_id:-unknown})"
+    ;;
+esac
 
 log "Installing NoMachine..."
 if ! dpkg -l nomachine &>/dev/null; then

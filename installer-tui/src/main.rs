@@ -11,7 +11,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame, Terminal,
 };
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::{
     collections::HashSet,
     fs::{self, OpenOptions},
@@ -1338,9 +1338,13 @@ fn build_data() -> (Vec<Package>, Vec<Entry>) {
              && mkdir -p \"$FONT_DIR\" \
              && unzip -o /tmp/FiraCode.zip -d \"$FONT_DIR\" \
              && { [ \"$(id -u)\" -ne 0 ] || chown -R \"$REAL_USER:$REAL_USER\" \"$FONT_DIR\"; } \
-             && sudo -u \"$REAL_USER\" fc-cache -fv \
+             && { if [ \"$(id -u)\" -eq 0 ]; then sudo -u \"$REAL_USER\" fc-cache -fv; else fc-cache -fv; fi; } \
              && rm -f /tmp/FiraCode.zip; \
-             sudo -u \"$REAL_USER\" gsettings set org.gnome.desktop.interface monospace-font-name 'FiraCode Nerd Font Mono 11' || true",
+             { if [ \"$(id -u)\" -eq 0 ]; then \
+                 sudo -u \"$REAL_USER\" gsettings set org.gnome.desktop.interface monospace-font-name 'FiraCode Nerd Font Mono 11'; \
+               else \
+                 gsettings set org.gnome.desktop.interface monospace-font-name 'FiraCode Nerd Font Mono 11'; \
+               fi; } || true",
         ),
         false,
         false,
@@ -2836,6 +2840,17 @@ fn get_pip_installed() -> HashSet<String> {
     set
 }
 
+fn path_is_executable(path: &str) -> bool {
+    let path = Path::new(path);
+    let Ok(meta) = path.metadata() else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    meta.permissions().mode() & 0o111 != 0
+}
+
 fn cli_installed(names: &[&str]) -> bool {
     let home = get_real_home();
     for name in names {
@@ -2845,10 +2860,7 @@ fn cli_installed(names: &[&str]) -> bool {
             format!("{home}/.local/bin/{name}"),
             format!("{home}/.cargo/bin/{name}"),
         ];
-        if candidates
-            .iter()
-            .any(|path| std::path::Path::new(path).is_file())
-        {
+        if candidates.iter().any(|path| path_is_executable(path)) {
             return true;
         }
         if sh_check(&format!("command -v {name} >/dev/null 2>&1")) {
@@ -3566,7 +3578,8 @@ fn main() -> io::Result<()> {
 mod tests {
     use super::{
         first_writable_dir, format_attempt_line, format_log_header, format_log_summary,
-        parse_version_id, release_allowed, release_lock_reason, sanitize_log_field, version_badge,
+        parse_version_id, path_is_executable, release_allowed, release_lock_reason,
+        sanitize_log_field, version_badge,
     };
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -3647,6 +3660,28 @@ mod tests {
         let text = "NAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION_CODENAME=noble\n";
         assert_eq!(parse_version_id(text).as_deref(), Some("24.04"));
         assert_eq!(parse_version_id("PRETTY_NAME=\"Ubuntu\"\n"), None);
+    }
+
+    #[test]
+    fn path_is_executable_rejects_a_regular_file_without_the_execute_bit() {
+        let root = std::env::temp_dir().join(format!(
+            "lwl-cli-test-{}-{}",
+            std::process::id(),
+            now_suffix()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let plain = root.join("codex");
+        let executable = root.join("claude");
+        fs::write(&plain, b"#!/bin/sh\n").unwrap();
+        fs::write(&executable, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&plain, fs::Permissions::from_mode(0o644)).unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(!path_is_executable(plain.to_str().unwrap()));
+        assert!(path_is_executable(executable.to_str().unwrap()));
+        assert!(!path_is_executable(root.join("missing").to_str().unwrap()));
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
