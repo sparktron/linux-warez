@@ -1,0 +1,11 @@
+# Stable Rust's glibc libstd (verified on 1.98) references
+# pidfd_spawnp@GLIBC_2.39 and pidfd_getpid@GLIBC_2.39. Those version
+# nodes are required at load time even though the symbols are weak, so a
+# gnu build does not start on Ubuntu 22.04 (glibc 2.35). Building on
+# 22.04 does not avoid it: the references come from prebuilt libstd, not
+# from the host libc. The musl target has no glibc dependency.
+[build]
+target = "x86_64-unknown-linux-musl"
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static"]

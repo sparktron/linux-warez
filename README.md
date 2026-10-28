@@ -2,7 +2,7 @@
 
 [![Ubuntu 22.04](https://img.shields.io/badge/Ubuntu-22.04%20LTS-E95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/download/desktop)
 [![x86-64](https://img.shields.io/badge/arch-x86--64-555)](https://ubuntu.com/)
-[![installer v0.14.1](https://img.shields.io/badge/installer-v0.14.1-blue)](CHANGELOG.md)
+[![installer v0.14.3](https://img.shields.io/badge/installer-v0.14.3-blue)](CHANGELOG.md)
 [![106 packages](https://img.shields.io/badge/catalog-106%20packages-success)](#catalog)
 [![Rust TUI](https://img.shields.io/badge/TUI-ratatui-000?logo=rust&logoColor=white)](https://ratatui.rs/)
 
@@ -36,7 +36,7 @@ sudo ./installer
 sudo bash install-all.sh
 ```
 
-Ubuntu **22.04 LTS**, x86-64. Run with `sudo` so root-only packages unlock. Both installers read `VERSION_ID` from `/etc/os-release`. `install-all.sh` installs only the lowlatency kernel for that release (`linux-lowlatency-hwe-22.04` or `linux-lowlatency-hwe-24.04`). The TUI locks the other release's kernel. Both installers skip ChatGPT desktop on anything other than 24.04 or 26.04. Do not install the unversioned `linux-lowlatency` package; on 24.04 it tracks the older 6.8 GA kernel.
+Ubuntu **22.04** and **24.04**, x86-64. The committed `./installer` is a static musl binary, so it does not depend on the host glibc (22.04 is 2.35, 24.04 is 2.39). Run with `sudo` so root-only packages unlock. Both installers read `VERSION_ID` from `/etc/os-release`. `install-all.sh` installs only the lowlatency kernel for that release (`linux-lowlatency-hwe-22.04` or `linux-lowlatency-hwe-24.04`). The TUI locks the other release's kernel. Both installers skip ChatGPT desktop on anything other than 24.04 or 26.04. Do not install the unversioned `linux-lowlatency` package; on 24.04 it tracks the older 6.8 GA kernel.
 
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) and the [ChatGPT CLI](https://github.com/openai/codex) are checked only when they are not already installed. If they are already on the machine, they stay unchecked and the installer does not run them unless you check them yourself. When they are checked, they install first.
 
@@ -295,23 +295,29 @@ Editor extensions and cloud MCP servers (Gmail, Calendar, Drive, Notion) are doc
 
 ## 🔨 Build from source
 
-Requires [Rust](https://www.rust-lang.org/) (stable).
+Requires [Rust](https://www.rust-lang.org/) (stable) via rustup. The release
+binary is `x86_64-unknown-linux-musl`, linked statically. A normal glibc
+build of current stable Rust needs `GLIBC_2.39` (`pidfd_spawnp`) and will
+not start on Ubuntu 22.04.
 
 ```bash
-cd installer-tui
-cargo build --release
-sudo ./target/release/installer-tui
+./build-release.sh
+sudo ./installer
 ```
 
-Refresh the committed `installer` binary after changing `installer-tui/src/main.rs`:
+`./build-release.sh` builds the musl target, rejects a glibc-linked
+binary, and copies it to `./installer`. The crate artifact is
+`installer-tui/target/x86_64-unknown-linux-musl/release/installer-tui`.
+
+Confirm it on 22.04, then on a 24.04 image:
 
 ```bash
-cd installer-tui && cargo build --release
-/usr/bin/cp target/release/installer-tui ../installer
-chmod +x ../installer
+file installer
+./installer --dump-json >/dev/null
+docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 /work/installer --dump-json >/dev/null
 ```
 
-Use `/usr/bin/cp`. A shell `cp` alias to `cp -i` will stop and ask.
+`file` should report `statically linked` or `static-pie`.
 
 `./installer --dump-json` prints the live catalog as JSON and exits. [Screenshot generation](docs/gen_screenshots.py) reads that output, so package changes do not need a Python edit.
 
@@ -323,7 +329,8 @@ Use `/usr/bin/cp`. A shell `cp` alias to `cp -i` will stop and ask.
 
 | File | Description |
 |------|-------------|
-| [`installer`](installer) | Pre-built TUI binary (Linux x86-64) |
+| [`installer`](installer) | Pre-built static musl TUI binary (Linux x86-64, Ubuntu 22.04 and 24.04) |
+| [`build-release.sh`](build-release.sh) | Builds that binary and copies it to `./installer` |
 | [`install-all.sh`](install-all.sh) | Headless install of the full catalog |
 | [`LINUX_WAREZ_LIST.md`](LINUX_WAREZ_LIST.md) | Full inventory: descriptions, commands, and manual extras |
 | [`CHANGELOG.md`](CHANGELOG.md) | Versioned release notes |

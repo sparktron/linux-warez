@@ -23,7 +23,10 @@ paths that must stay in sync:
 | `README.md` | User docs, package count, package tables | Any package change |
 | `LINUX_WAREZ_LIST.md` | Extended human-readable inventory | Any package change |
 | `docs/gen_screenshots.py` | Generates HTML mocks for README screenshots | HTML/layout changes only (package data is auto-derived from `--dump-json`) |
-| `installer` | Pre-built TUI binary (committed) | After any `main.rs` change |
+| `installer` | Pre-built static musl TUI binary (committed) | After any `main.rs` change, via `./build-release.sh` |
+| `build-release.sh` | Musl release build, glibc check, copy to `./installer` | Build-process changes |
+| `rust-toolchain.toml` | Stable Rust + musl target | Toolchain changes |
+| `.cargo/config.toml` | Default target `x86_64-unknown-linux-musl`, static crt | Build-process changes |
 | `gather-software-inventory.sh` | Dumps JSON of installed software | Rarely |
 | `software-inventory.json` | Snapshot output | Rarely |
 | `installer-tui/Cargo.toml` | Rust dependencies and version | Dep changes or version bumps |
@@ -44,15 +47,16 @@ of these:
 changes.** Since v0.8.0 it calls `./installer --dump-json` at runtime to
 derive all package data. Only touch it if the HTML rendering logic changes.
 
-After editing `main.rs`, rebuild and copy the binary:
+After editing `main.rs`, rebuild the committed binary from the repo root:
 
 ```bash
-cd installer-tui && cargo build --release
-/usr/bin/cp target/release/installer-tui ../installer
-chmod +x ../installer
+./build-release.sh
 ```
 
-Use `/usr/bin/cp` because the shell may alias `cp` to `cp -i` which prompts.
+That script builds the static musl target, checks the binary is not linked
+against glibc, and copies it to `./installer`. Use it instead of
+`cargo build --release` plus `cp`. The script calls `/usr/bin/cp` because
+the shell may alias `cp` to `cp -i` which prompts.
 
 ## TUI Architecture (main.rs)
 
@@ -247,10 +251,9 @@ The TUI title bar reads it at compile time via `env!("CARGO_PKG_VERSION")` in
    ```toml
    version = "0.9.0"
    ```
-2. Rebuild and copy the binary:
+2. Rebuild and copy the binary from the repo root:
    ```bash
-   cd installer-tui && cargo build --release
-   /usr/bin/cp target/release/installer-tui ../installer && chmod +x ../installer
+   ./build-release.sh
    ```
 3. Add a `## [X.Y.Z] — YYYY-MM-DD` section to `CHANGELOG.md` documenting
    what changed and why (see existing entries for the expected level of detail).
@@ -260,18 +263,41 @@ after the rebuild.
 
 ## Build
 
-Requires Rust (stable). No other build system.
+Requires Rust (stable) via rustup. `rust-toolchain.toml` installs the
+`x86_64-unknown-linux-musl` target. `.cargo/config.toml` selects that
+target and links it statically (`crt-static`).
+
+The glibc target is the wrong release target. Stable libstd references
+`pidfd_spawnp@GLIBC_2.39` and `pidfd_getpid@GLIBC_2.39`. The dynamic
+loader requires that version node before it honors the weak binding, so
+the binary dies on Ubuntu 22.04 (glibc 2.35) with `GLIBC_2.39 not found`.
+Compiling inside `ubuntu:22.04`, or pointing zig/clang at a 2.35 sysroot,
+does not remove those references: they are already in the prebuilt gnu
+libstd. Musl libstd does not use glibc, so one static binary runs on
+22.04 and 24.04.
+
+From the repo root:
 
 ```bash
-cd installer-tui
-cargo build --release
+./build-release.sh
 ```
 
-Copy the binary to repo root after building:
+The binary lands at `installer-tui/target/x86_64-unknown-linux-musl/release/installer-tui`
+and is copied to `./installer`. The script refuses to install a copy that
+`ldd` links to `libc.so`.
+
+Check the result on the build machine (this is enough on 22.04):
 
 ```bash
-/usr/bin/cp target/release/installer-tui ../installer
-chmod +x ../installer
+file installer
+./installer --dump-json >/dev/null
+```
+
+`file` should say `statically linked` or `static-pie`. To check 24.04
+from a 22.04 host:
+
+```bash
+docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 /work/installer --dump-json >/dev/null
 ```
 
 ## Style
@@ -287,7 +313,10 @@ chmod +x ../installer
 - **Forgetting to update one of the mirrors.** Every package change touches at
   least 4 files. Use the checklist in "The Sync Rule" above.
 - **Not rebuilding the binary.** The committed `installer` binary must match
-  `main.rs`. Always rebuild after source changes.
+  `main.rs`. Always rebuild with `./build-release.sh` after source changes.
+- **Shipping a glibc-linked `./installer`.** `cargo build --release --target
+  x86_64-unknown-linux-gnu` requires `GLIBC_2.39` and will not start on
+  Ubuntu 22.04. The musl target is the one that gets committed.
 - **Using `cp` instead of `/usr/bin/cp`.** The shell aliases `cp` to `cp -i`
   which blocks on interactive confirmation.
 - **Installing pip packages without version pins.** Check Mythos compatibility

@@ -12,12 +12,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: installer-tui
-      - name: cargo build --release
+      # gnu libstd references GLIBC_2.39 (pidfd_spawnp). The musl target
+      # is what ./build-release.sh ships, and it runs on 22.04 and 24.04.
+      - name: cargo build --release (static musl)
         working-directory: installer-tui
-        run: cargo build --release
+        run: cargo build --release --target x86_64-unknown-linux-musl
+      - name: Reject a glibc-linked installer
+        working-directory: installer-tui
+        run: |
+          bin=target/x86_64-unknown-linux-musl/release/installer-tui
+          file -b "$bin" | grep -Eq 'statically linked|static-pie'
+          if ldd "$bin" 2>&1 | grep -q 'libc.so'; then
+            echo "binary links glibc" >&2
+            exit 1
+          fi
+          "$bin" --dump-json >/dev/null
 
   lint-shell:
     name: Lint shell scripts

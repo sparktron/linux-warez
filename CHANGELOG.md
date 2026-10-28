@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.3] — 2026-10-27
+
+### Fixes
+
+#### The committed installer runs on Ubuntu 22.04 again
+
+**Motivation:** `./installer` was a glibc build of Rust 1.98. Its libstd references `pidfd_spawnp@GLIBC_2.39` and `pidfd_getpid@GLIBC_2.39`. Those version nodes are required at load time even though the symbols are weak, so Ubuntu 22.04 (glibc 2.35) refused to start the binary. Compiling on 22.04 does not help: the references are in the prebuilt gnu standard library, not in the host libc.
+
+**What it does:** Release builds use fully static `x86_64-unknown-linux-musl` (`rust-toolchain.toml`, `.cargo/config.toml`, `./build-release.sh`). The same binary runs on Ubuntu 22.04 and 24.04. CI builds that target and fails if the result is linked to `libc.so`.
+
+---
+
 ## [0.14.2] — 2026-09-27
 
 ### Fixes
